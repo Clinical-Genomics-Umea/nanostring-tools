@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Clinical Genomics Web Tools</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 40px;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        h1 {
+            color: #2c3e50;
+        }
+
+        .tool-list {
+            margin-top: 2rem;
+        }
+
+        .tool {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.2rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .tool h2 {
+            margin-top: 0;
+        }
+
+        .tool a {
+            display: inline-block;
+            margin-top: 0.5rem;
+            background: #3498db;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+
+        .tool a:hover {
+            background: #2980b9;
+        }
+
+        footer {
+            margin-top: 3rem;
+            font-size: 0.9rem;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <h1>Clinical Genomics Umeå — Web Tools</h1>
+    <p>This is a collection of browser-based tools designed for internal use by the Clinical Genomics team in Umeå. All tools run entirely in your browser — no installation or data upload required.</p>
+
+    <div class="tool-list">
+        <div class="tool">
+            <h2>🧾 Worksheet per Plate Parser</h2>
+            <p>Parse GeoMx worksheet `.txt` files and export an `.xlsx` workbook with one sheet per collection plate.</p>
+            <a href="worksheet-per-plate.html">Launch Tool</a>
+        </div>
+
+        <!-- Add more tools like this -->
+        <!--
+        <div class="tool">
+            <h2>🔬 AOI Quality Checker</h2>
+            <p>Review and flag AOIs based on quality metrics extracted from GeoMx data.</p>
+            <a href="aoi-quality-checker.html">Launch Tool</a>
+        </div>
+        -->
+    </div>
+
+    <footer>
+        <p>Version 1.0.0 — <a href="https://github.com/Clinical-Genomics-Umea/nanostring-tools">View on GitHub</a></p>
+    </footer>
+</body>
+</html>

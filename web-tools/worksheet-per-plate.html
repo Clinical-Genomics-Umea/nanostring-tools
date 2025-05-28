@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GeoMx Collection Plate Parser</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script defer src="js/worksheet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 40px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        input[type="file"] {
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        p {
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>GeoMx Collection Plate Parser</h1>
+    <p>This tool helps you parse tab-delimited GeoMx worksheet files and automatically split them into Excel sheets by <strong>Collection Plate</strong>.</p>
+    <p>It identifies the column <code>Sample_ID</code>, groups by the plate identifier (the part after the dash), and calculates total area and AOI counts per plate.</p>
+    <p>No installation required — just upload the file and download your Excel summary.</p>
+
+    <input type="file" id="fileInput" accept=".txt" />
+    <br />
+    <button onclick="processFile()">Process and Download Excel</button>
+</div>
+</body>
+</html>
