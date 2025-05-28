@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GeoMx Collection Plate Parser</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 40px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        input[type="file"] {
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        p {
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>GeoMx Collection Plate Parser</h1>
+    <p>This tool helps you parse tab-delimited GeoMx worksheet files and automatically split them into Excel sheets by <strong>Collection Plate</strong>.</p>
+    <p>It identifies the column <code>Sample_ID</code>, groups by the plate identifier (the part after the dash), and calculates total area and AOI counts per plate.</p>
+    <p>No installation required — just upload the file and download your Excel summary.</p>
+
+    <input type="file" id="fileInput" accept=".txt" />
+    <br />
+    <button onclick="processFile()">Process and Download Excel</button>
+</div>
+
+<script>
+    function processFile() {
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files.length) return alert('Please choose a file first.');
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const lines = e.target.result.split(/\r?\n/);
+            let headers = [];
+            const plates = {};
+
+            // Find header row
+            let startIdx = 0;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith("Sample_ID")) {
+                    headers = lines[i].split("\t");
+                    startIdx = i + 1;
+                    break;
+                }
+            }
+
+            // Group lines by Collection Plate
+            for (let i = startIdx; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                const parts = line.split("\t");
+                if (parts.length < 8) continue;
+
+                const sampleID = parts[0];
+                if (!sampleID.includes("-")) continue;
+
+                const plate = sampleID.split("-")[1];
+                if (!plates[plate]) plates[plate] = [];
+                plates[plate].push(parts);
+            }
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+
+            Object.entries(plates).forEach(([plate, rows]) => {
+                const data = [headers];
+                let totalArea = 0;
+                let count = 0;
+
+                rows.forEach(r => {
+                    data.push(r);
+                    const area = parseFloat(r[7]);
+                    if (!isNaN(area)) {
+                        totalArea += area;
+                        count++;
+                    }
+                });
+
+                // Add summary on top
+                data.unshift([
+                    `Collection Plate: ${plate}`,
+                    `Total AOIs: ${count}`,
+                    `Total Area: ${totalArea.toFixed(2)}`
+                ]);
+
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                XLSX.utils.book_append_sheet(wb, ws, plate.substring(0, 31));
+            });
+
+            // Download the Excel file
+            XLSX.writeFile(wb, 'GeoMx_plates.xlsx');
+        };
+
+        reader.readAsText(file);
+    }
+</script>
+</body>
+</html>
