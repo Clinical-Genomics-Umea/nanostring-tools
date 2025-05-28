@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GeoMx Library Pooling Tool</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            background: #f4f4f4;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        label, select, input {
+            font-size: 1rem;
+        }
+        table {
+            margin-top: 1rem;
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 0.5rem;
+            text-align: center;
+        }
+        th {
+            background: #e9ecef;
+        }
+        .controls {
+            margin: 1rem 0;
+        }
+        button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+<h1>NanoString GeoMx Library Pooling</h1>
+<p>Specify the number of libraries to pool, input Qubit concentrations, fragment lengths, and pool area. The molarities, ratios, and pooling volumes will be calculated.</p>
+
+<div class="controls">
+    <label for="numLibs">Number of libraries to pool: </label>
+    <select id="numLibs" onchange="generateTable()">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+    </select>
+</div>
+
+<table id="poolTable">
+</table>
+
+<button onclick="downloadExcel()">Download Pooling Plan</button>
+
+<script>
+function generateTable() {
+    const num = parseInt(document.getElementById('numLibs').value);
+    const table = document.getElementById('poolTable');
+    let html = `<tr>
+        <th>Library</th>
+        <th>Plate</th>
+        <th>Qubit Conc. (ng/µl)</th>
+        <th>Fragment Length (bp)</th>
+        <th>Pool Area</th>
+        <th>Molarity (nM)</th>
+        <th>Ratio</th>
+        <th>Volume (µl)</th>
+    </tr>`;
+
+    for (let i = 0; i < num; i++) {
+        html += `<tr>
+            <td>Library ${i + 1}</td>
+            <td><input type="text" id="plate_${i}"></td>
+            <td><input type="number" step="any" id="qubit_${i}" oninput="updateCalc()"></td>
+            <td><input type="number" step="any" id="fraglen_${i}" value="162" oninput="updateCalc()"></td>
+            <td><input type="number" step="any" id="area_${i}" oninput="updateCalc()"></td>
+            <td id="mol_${i}">0.00</td>
+            <td id="ratio_${i}">0.00</td>
+            <td id="vol_${i}">0.00</td>
+        </tr>`;
+    }
+
+    table.innerHTML = html;
+    updateCalc();
+}
+
+function updateCalc() {
+    const num = parseInt(document.getElementById('numLibs').value);
+    let mols = [], areas = [], ratios = [], volumes = [];
+    let totalArea = 0, totalMol = 0;
+
+    for (let i = 0; i < num; i++) {
+        const qubit = parseFloat(document.getElementById(`qubit_${i}`).value);
+        const fraglen = parseFloat(document.getElementById(`fraglen_${i}`).value);
+        const area = parseFloat(document.getElementById(`area_${i}`).value);
+
+        const mol = (!isNaN(qubit) && !isNaN(fraglen)) ? (qubit * 1000000) / (fraglen * 660) : 0;
+        mols[i] = mol;
+        areas[i] = isNaN(area) ? 0 : area;
+        totalArea += areas[i];
+        document.getElementById(`mol_${i}`).innerText = mol.toFixed(2);
+    }
+
+    for (let i = 0; i < num; i++) {
+        const ratio = totalArea > 0 ? areas[i] / totalArea : 0;
+        const vol = ratio > 0 && mols[i] > 0 ? (2 / mols[i]) * ratio * 10 : 0; // scale factor of 10 for better µl
+        ratios[i] = ratio;
+        volumes[i] = vol;
+        document.getElementById(`ratio_${i}`).innerText = ratio.toFixed(3);
+        document.getElementById(`vol_${i}`).innerText = vol.toFixed(2);
+    }
+}
+
+function downloadExcel() {
+    const num = parseInt(document.getElementById('numLibs').value);
+    const rows = [["Library", "Plate", "Qubit (ng/µl)", "Fragment Length", "Pool Area", "Molarity (nM)", "Ratio", "Volume (µl)"]];
+
+    for (let i = 0; i < num; i++) {
+        const plate = document.getElementById(`plate_${i}`).value;
+        const qubit = parseFloat(document.getElementById(`qubit_${i}`).value) || 0;
+        const fraglen = parseFloat(document.getElementById(`fraglen_${i}`).value) || 0;
+        const area = parseFloat(document.getElementById(`area_${i}`).value) || 0;
+        const mol = (qubit * 1000000) / (fraglen * 660);
+        const totalArea = [...Array(num).keys()].reduce((sum, j) => sum + (parseFloat(document.getElementById(`area_${j}`).value) || 0), 0);
+        const ratio = totalArea > 0 ? area / totalArea : 0;
+        const vol = ratio > 0 && mol > 0 ? (2 / mol) * ratio * 10 : 0;
+
+        rows.push([`Library ${i + 1}`, plate, qubit, fraglen, area, mol.toFixed(2), ratio.toFixed(3), vol.toFixed(2)]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Pooling Plan");
+    XLSX.writeFile(wb, 'geomx_pooling_plan.xlsx');
+}
+
+generateTable();
+</script>
+</body>
+</html>

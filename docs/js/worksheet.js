@@ -1,6 +1,6 @@
 /**
  * GeoMx Worksheet per Plate Parser
- * Version: 1.0.0
+ * Version: 1.1.0
  * Date: 2025-05-28
  * Description: Parses tab-delimited GeoMx files and exports .xlsx with sheets per Collection Plate.
  * Author: Adam Rosenbaum, Clinical Genomics Umeå
@@ -53,7 +53,8 @@ function processFile() {
 
             rows.forEach(r => {
                 data.push(r);
-                const area = parseFloat(r[7]);
+                const rawArea = r[7].replace(',', '.');
+                const area = parseFloat(rawArea);
                 if (!isNaN(area)) {
                     totalArea += area;
                     count++;
