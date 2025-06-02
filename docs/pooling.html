@@ -1,46 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>GeoMx Library Pooling Tool</title>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <style>
-        body {
-            font-family: sans-serif;
-            padding: 2rem;
-            background: #f4f4f4;
-        }
-        h1 {
-            color: #2c3e50;
-        }
-        label, select, input {
-            font-size: 1rem;
-        }
-        table {
-            margin-top: 1rem;
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 0.5rem;
-            text-align: center;
-        }
-        th {
-            background: #e9ecef;
-        }
-        .controls {
-            margin: 1rem 0;
-        }
-        button {
-            margin-top: 1rem;
-            padding: 0.5rem 1rem;
-            font-size: 1rem;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>GeoMx Library Pooling Tool</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<style>
+    body {
+        font-family: sans-serif;
+        padding: 2rem;
+        background: #f4f4f4;
+    }
+    h1 {
+        color: #2c3e50;
+    }
+    label, select, input {
+        font-size: 1rem;
+    }
+    table {
+        margin-top: 1rem;
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+    th, td {
+        border: 1px solid #ccc;
+        padding: 0.5rem;
+        text-align: center;
+    }
+    th {
+        background: #e9ecef;
+    }
+    .controls {
+        margin: 1rem 0;
+    }
+    button {
+        margin-top: 1rem;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+    }
+</style>
 </head>
 <body>
+
 <h1>NanoString GeoMx Library Pooling</h1>
 <p>Specify the number of libraries to pool, input Qubit concentrations, fragment lengths, and pool area. The molarities, ratios, and pooling volumes will be calculated.</p>
 
@@ -61,7 +62,26 @@
 
 <div id="wtaReads" style="margin-top:1rem;font-weight:bold;"></div>
 
-<table id="concTable" style="margin-top:2rem;"></table>
+<div class="controls" style="margin-top:1rem;">
+    <label>Target conc. for pooling (nM):</label>
+    <input type="number" id="targetConc" class="input-field3" value="2" min="0.01" step="any" style="width:5em;">
+    <label>Target volume for pooling (µL):</label>
+    <input type="number" id="targetVol" class="input-field3" value="20" min="1" step="any" style="width:5em;">
+</div>
+
+<table id="concTable"></table>
+
+<h2>Final Loading Mixture</h2>
+<div class="controls">
+    <label>Target final conc. (pM):</label>
+    <input type="number" id="finalTargetConc" class="input-field3" value="650" min="1" step="any" style="width:5em;">
+    <label>Target final volume (µL):</label>
+    <input type="number" id="finalTargetVol" class="input-field3" value="20" min="1" step="any" style="width:5em;">
+    <label>% PhiX:</label>
+    <input type="number" id="phiXpercent" class="input-field3" value="5" min="0" max="100" step="any" style="width:5em;">
+</div>
+
+<table id="finalMixTable"></table>
 
 <button id="downloadBtn">Download Pooling Plan</button>
 
