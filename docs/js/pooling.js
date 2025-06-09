@@ -14,17 +14,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function createTable(num, prevData = []) {
         let html = `<tr>
             <th>Library</th>
+            <th>Library ID</th>
             <th>Plate</th>
             <th>Qubit Conc. (ng/µl)</th>
             <th>Fragment Length (bp)</th>
             <th>Pool Area</th>
-            <th>Molarity (nM)</th>
+            <th>Conc. (nM)</th>
             <th>Ratio</th>
         </tr>`;
         for (let i = 0; i < num; i++) {
             const prev = prevData[i] || {};
             html += `<tr>
                 <td>Library ${i + 1}</td>
+                <td><input type="text" id="library_id_${i}" value="${prev.library_id || ''}"></td>
                 <td><input type="text" id="plate_${i}" value="${prev.plate || ''}"></td>
                 <td><input type="number" step="any" id="qubit_${i}" class="input-field" value="${prev.qubit || ''}"></td>
                 <td><input type="number" step="any" id="fraglen_${i}" value="${prev.fraglen || 162}"></td>
@@ -40,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let data = [];
         for (let i = 0; i < num; i++) {
             data.push({
+                library_id: document.getElementById(`library_id_${i}`)?.value || '',
                 plate: document.getElementById(`plate_${i}`)?.value || '',
                 qubit: document.getElementById(`qubit_${i}`)?.value || '',
                 fraglen: document.getElementById(`fraglen_${i}`)?.value || 162,
@@ -79,12 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetConc = parseFloat(document.getElementById('targetConc')?.value) || 2.0;
 
         let dilutionConcs = [], volsToPool = [], sumVols = 0;
-        let table = `<tr><th>#</th><th>Sample ID</th><th>Quantification<br>(nM)</th><th>Dilution factor</th><th>Dilution conc.<br>(nM)</th><th>Vol. to pool<br>(µL)</th><th>Proportion</th><th>Final conc.<br>(nM)</th></tr>`;
+        let table = `<tr><th>Library ID</th><th>Quantification<br>(nM)</th><th>Dilution factor</th><th>Dilution conc.<br>(nM)</th><th>Vol. to pool<br>(µL)</th><th>Proportion</th><th>Final conc.<br>(nM)</th></tr>`;
 
         for (let i = 0; i < num; i++) {
             let dilfacId = `dilfac2_${i}`;
             let prevDilfac = document.getElementById(dilfacId)?.value || 4;
-            table += `<tr><td>${i + 1}</td><td>${document.getElementById(`plate_${i}`).value}</td><td>${mols[i].toFixed(2)}</td>` +
+            table += `<tr><td>${document.getElementById(`library_id_${i}`).value}</td><td>${mols[i].toFixed(2)}</td>` +
                 `<td><input type="number" step="any" id="${dilfacId}" class="input-field2" value="${prevDilfac}" min="1"></td>`;
             const dilfac = parseFloat(prevDilfac) || 4;
             const dilConc = mols[i] / dilfac;
@@ -144,7 +147,95 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     downloadBtn.addEventListener('click', () => {
-        // ... your download logic ...
+        // Helper to convert a real DOM table to array of arrays, extracting input values if present
+        function tableToArrayWithInputsFromDOM(tableElem) {
+            const rows = Array.from(tableElem.rows);
+            return rows.map(row => Array.from(row.cells).map(cell => {
+                const input = cell.querySelector('input');
+                return input ? input.value : cell.innerText;
+            }));
+        }
+
+        // Helper to check if a string is a number (with . or ,)
+        function isNumeric(val) {
+            return /^-?\d*[\.,]?\d+$/.test(val.trim());
+        }
+        // Helper to normalize decimal separator to comma
+        function normalizeDecimal(val) {
+            if (isNumeric(val)) {
+                // Replace comma with dot for parse, then back to comma for export
+                let num = parseFloat(val.replace(',', '.'));
+                if (!isNaN(num)) {
+                    // Always use 2 decimals for numbers
+                    return num.toFixed(2).replace('.', ',');
+                }
+            }
+            return val;
+        }
+        // Helper to extract table headers and data, normalizing decimals only for numeric columns
+        function tableToArrayWithHeaders(tableElem) {
+            const rows = Array.from(tableElem.rows);
+            const arr = [];
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = Array.from(row.cells).map((cell, colIdx) => {
+                    const input = cell.querySelector('input');
+                    let val = input ? input.value : cell.innerText;
+                    // Only normalize decimals for columns that are not text headers
+                    // PoolTable: columns 0=Library, 1=Library ID, 2=Plate, 3=Qubit Conc, 4=Fragment Length, 5=Pool Area, 6=Molarity, 7=Ratio
+                    // ConcTable: 0=Library ID, 1=Quantification, 2=Dilution factor, 3=Dilution conc, 4=Vol to pool, 5=Proportion, 6=Final conc
+                    // FinalMixTable: all numeric
+                    // For PoolTable: only columns 3-7 are numeric
+                    // For ConcTable: only columns 1-6 are numeric
+                    // For FinalMixTable: all columns are numeric
+                    let isNumericCol = false;
+                    if (tableElem === poolTable) {
+                        isNumericCol = (colIdx >= 3);
+                    } else if (tableElem === concTable) {
+                        isNumericCol = (colIdx >= 1);
+                    } else if (tableElem === finalMixTable) {
+                        isNumericCol = true;
+                    }
+                    if (isNumericCol && isNumeric(val)) {
+                        let num = parseFloat(val.replace(',', '.'));
+                        if (!isNaN(num)) {
+                            return num.toFixed(2).replace('.', ',');
+                        }
+                    }
+                    return val;
+                });
+                arr.push(cells);
+            }
+            return arr;
+        }
+
+        // Convert to arrays (with input values and normalized decimals only for numeric columns)
+        const poolData = tableToArrayWithHeaders(poolTable);
+        const concData = tableToArrayWithHeaders(concTable);
+        const finalMixData = tableToArrayWithHeaders(finalMixTable);
+
+        // Combine with blank rows and section headers
+        // Add a blank row before each table for Excel visibility
+        const sheetData = [];
+        sheetData.push(['Pooling']);
+        sheetData.push([]); // blank row before table
+        sheetData.push(...poolData);
+        sheetData.push([]);
+        sheetData.push(['Concentrations']);
+        sheetData.push([]);
+        sheetData.push(...concData);
+        sheetData.push([]);
+        sheetData.push(['Final Load mixture']);
+        sheetData.push([]);
+        sheetData.push(...finalMixData);
+
+        // Create worksheet and workbook (just plain tables, no Excel table formatting)
+        const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Pooling Data');
+
+        // Download
+        XLSX.writeFile(wb, 'pooling_data.xlsx');
     });
 
     createTable(parseInt(numLibsSelect.value));

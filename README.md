@@ -18,6 +18,7 @@ Located under `web-tools/`.
 | Tool | Description | Link |
 |------|-------------|------|
 | Worksheet per Plate Parser | Parses tab-delimited GeoMx `.txt` files. Groups entries by `Collection Plate` and generates a `.xlsx` file with one sheet per plate, including total AOI count and area. | [Launch Tool](https://clinical-genomics-umea.github.io/nanostring-tools/) |
+| GeoMx Pooling Tool | Calculates and exports pooling mixes for GeoMx libraries, including dilution, pooling, and final loading steps. | [Launch Tool](https://clinical-genomics-umea.github.io/nanostring-tools/) |
 
 These tools run entirely in the browser. No data is transmitted or stored externally, making them suitable for clinical or internal research use.
 

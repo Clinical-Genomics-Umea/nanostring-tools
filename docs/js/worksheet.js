@@ -1,12 +1,3 @@
-/**
- * GeoMx Worksheet per Plate Parser
- * Version: 1.1.0
- * Date: 2025-05-28
- * Description: Parses tab-delimited GeoMx files and exports .xlsx with sheets per Collection Plate.
- * Author: Adam Rosenbaum, Clinical Genomics Umeå
- * Repo: https://github.com/Clinical-Genomics-Umea/nanostring-tools
- */
-
 function processFile() {
     const fileInput = document.getElementById('fileInput');
     if (!fileInput.files.length) return alert('Please choose a file first.');
