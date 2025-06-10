@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><input type="text" id="library_id_${i}" value="${prev.library_id || ''}"></td>
                 <td><input type="text" id="plate_${i}" value="${prev.plate || ''}"></td>
                 <td><input type="number" step="any" id="qubit_${i}" class="input-field" value="${prev.qubit || ''}"></td>
-                <td><input type="number" step="any" id="fraglen_${i}" value="${prev.fraglen || 162}"></td>
+                <td><input type="number" step="any" id="fraglen_${i}" class="input-field" value="${prev.fraglen || 162}"></td>
                 <td><input type="number" step="any" id="area_${i}" class="input-field" value="${prev.area || ''}"></td>
                 <td id="mol_${i}">0.00</td>
                 <td id="ratio_${i}">0.00</td>
