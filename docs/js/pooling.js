@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         concTable.innerHTML = table;
 
         warningDiv.textContent = (sumVols > targetVol)
-            ? `⚠️ Warning: Total pooled volumes (${sumVols.toFixed(2)} µL) exceed target volume (${targetVol.toFixed(2)} µL). Adjust dilution factors or target volume.`
+            ? `Warning: Total pooled volumes (${sumVols.toFixed(2)} µL) exceed target volume (${targetVol.toFixed(2)} µL). Adjust dilution factors or target volume.`
             : '';
 
         for (let i = 0; i < num; i++) {
@@ -134,6 +134,91 @@ document.addEventListener('DOMContentLoaded', () => {
         <tr><td>${finalTargetConcP}</td><td>${finalTargetVol}</td><td>${phiXpercent}</td><td>${safeLibVol.toFixed(2)}</td><td>${phiXvol.toFixed(2)}</td><td>${safeEbVol.toFixed(2)}</td></tr>`;
     }
 
+    // Save all input values to localStorage
+    function saveInputsToStorage() {
+        const num = parseInt(numLibsSelect.value);
+        const data = {
+            numLibs: num,
+            pool: []
+        };
+        for (let i = 0; i < num; i++) {
+            data.pool.push({
+                library_id: document.getElementById(`library_id_${i}`)?.value || '',
+                plate: document.getElementById(`plate_${i}`)?.value || '',
+                qubit: document.getElementById(`qubit_${i}`)?.value || '',
+                fraglen: document.getElementById(`fraglen_${i}`)?.value || '',
+                area: document.getElementById(`area_${i}`)?.value || ''
+            });
+        }
+        // Other controls
+        data.targetConc = document.getElementById('targetConc')?.value || '';
+        data.targetVol = document.getElementById('targetVol')?.value || '';
+        data.finalTargetConc = document.getElementById('finalTargetConc')?.value || '';
+        data.finalTargetVol = document.getElementById('finalTargetVol')?.value || '';
+        data.phiXpercent = document.getElementById('phiXpercent')?.value || '';
+        // Dilution factors
+        data.dilfacs = [];
+        for (let i = 0; i < num; i++) {
+            const dil = document.getElementById(`dilfac2_${i}`);
+            data.dilfacs.push(dil ? dil.value : '');
+        }
+        localStorage.setItem('poolingToolData', JSON.stringify(data));
+    }
+
+    // Load all input values from localStorage
+    function loadInputsFromStorage() {
+        const data = JSON.parse(localStorage.getItem('poolingToolData') || 'null');
+        if (!data) return;
+        // Set number of libraries
+        numLibsSelect.value = data.numLibs || numLibsSelect.value;
+        createTable(parseInt(numLibsSelect.value), data.pool || []);
+        // Set pool table values
+        for (let i = 0; i < (data.pool || []).length; i++) {
+            document.getElementById(`library_id_${i}`).value = data.pool[i].library_id || '';
+            document.getElementById(`plate_${i}`).value = data.pool[i].plate || '';
+            document.getElementById(`qubit_${i}`).value = data.pool[i].qubit || '';
+            document.getElementById(`fraglen_${i}`).value = data.pool[i].fraglen || '';
+            document.getElementById(`area_${i}`).value = data.pool[i].area || '';
+        }
+        if (data.targetConc) document.getElementById('targetConc').value = data.targetConc;
+        if (data.targetVol) document.getElementById('targetVol').value = data.targetVol;
+        if (data.finalTargetConc) document.getElementById('finalTargetConc').value = data.finalTargetConc;
+        if (data.finalTargetVol) document.getElementById('finalTargetVol').value = data.finalTargetVol;
+        if (data.phiXpercent) document.getElementById('phiXpercent').value = data.phiXpercent;
+        // Set dilution factors
+        if (data.dilfacs) {
+            for (let i = 0; i < data.dilfacs.length; i++) {
+                const dil = document.getElementById(`dilfac2_${i}`);
+                if (dil && data.dilfacs[i]) dil.value = data.dilfacs[i];
+            }
+        }
+    }
+
+    // Patch updateCalc to save after every change
+    function updateCalcAndSave() {
+        updateCalc();
+        saveInputsToStorage();
+    }
+
+    // Add a Save button for manual saving
+    function addSaveButton() {
+        if (document.getElementById('saveSessionBtn')) return;
+        const btn = document.createElement('button');
+        btn.id = 'saveSessionBtn';
+        btn.textContent = 'Save Session';
+        btn.style.marginLeft = '1em';
+        btn.style.marginTop = '1em';
+        btn.addEventListener('click', () => {
+            saveInputsToStorage();
+            btn.textContent = 'Saved!';
+            setTimeout(() => { btn.textContent = 'Save Session'; }, 1200);
+        });
+        // Insert after the PDF button
+        const pdfBtn = document.getElementById('downloadPdfBtn');
+        pdfBtn.parentNode.insertBefore(btn, pdfBtn.nextSibling);
+    }
+
+    // Patch addInputListeners to only update calculations, not save
     function addInputListeners() {
         document.querySelectorAll('.input-field, .input-field2, #targetConc, #targetVol, #finalTargetConc, #finalTargetVol, #phiXpercent').forEach(field => {
             field.addEventListener('input', updateCalc);
@@ -228,14 +313,14 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.setFontSize(16);
         doc.text('GeoMx Pooling Plan Report', 14, 16);
 
-        doc.setFontSize(12);
-        doc.text('Sequencing Specifications / Comments:', 14, 28);
+        var y = 24;
 
-        doc.setDrawColor(100);
-        doc.rect(14, 32, 180, 20);
-        doc.setFontSize(10);
-        doc.text('', 16, 44);
-        var y = 56;
+        let totalArea = 0;
+        for (let i = 1; i < poolData.length; i++) { // skip header row
+            const areaStr = poolData[i][5];
+            const area = parseFloat((areaStr || '0').replace(',', '.'));
+            if (!isNaN(area)) totalArea += area;
+        }
 
         if (poolData.length > 1) {
             doc.setFontSize(12);
@@ -249,6 +334,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             y = doc.lastAutoTable.finalY + 10;
         }
+
+        const totalReads = Math.round(totalArea * 100);
+        doc.setFontSize(12);
+        doc.text(`Estimated WTA reads: ${totalReads.toLocaleString()} reads`, 14, y);
+        y += 10;
 
         if (concData.length > 1) {
             doc.text('Concentrations', 14, y);
@@ -271,12 +361,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 styles: { fontSize: 9 },
                 margin: { left: 14, right: 14 }
             });
+            y = doc.lastAutoTable.finalY + 10;
         }
+
+        doc.setFontSize(12);
+        doc.text('Sequencing Specifications / Comments:', 14, y);
+        doc.setDrawColor(100);
+        doc.rect(14, y + 4, 180, 40);
+        doc.setFontSize(10);
+        doc.text('', 16, y + 16);
 
         doc.save('pooling_report.pdf');
     });
 
     createTable(parseInt(numLibsSelect.value));
     addInputListeners();
+    addSaveButton();
+    loadInputsFromStorage();
     updateCalc();
 });
