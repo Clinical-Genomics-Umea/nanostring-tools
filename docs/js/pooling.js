@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < num; i++) {
             const prev = prevData[i] || {};
             html += `<tr>
-                <td>Library ${i + 1}</td>
+                <td>${i + 1}</td>
                 <td><input type="text" id="library_id_${i}" value="${prev.library_id || ''}"></td>
                 <td><input type="text" id="plate_${i}" value="${prev.plate || ''}"></td>
                 <td><input type="number" step="any" id="qubit_${i}" class="input-field" value="${prev.qubit || ''}"></td>
@@ -375,8 +375,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     createTable(parseInt(numLibsSelect.value));
-    addInputListeners();
     addSaveButton();
     loadInputsFromStorage();
     updateCalc();
+    addInputListeners();
 });
