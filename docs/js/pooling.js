@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let table = `<tr><th>Library ID</th><th>Start Conc.<br>(nM)</th><th>Desired Conc.<br>(nM)</th><th>Desired Vol.<br>(µL)</th><th>Lib Vol to mix<br>(µL)</th><th>EB Vol to mix<br>(µL)</th><th>Vol. to pool<br>(µL)</th><th>Ratio</th></tr>`;
         let sumVolsToPool = 0;
         let volWarnings = [];
+        let concWarnings = [];
         for (let i = 0; i < num; i++) {
             let desiredVol;
             if (desiredVolsFromStore && desiredVolsFromStore[i] !== undefined && desiredVolsFromStore[i] !== '') {
@@ -132,6 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (desiredVol < volToPool - 0.01) {
                 volWarnings.push(`Library ${document.getElementById(`library_id_${i}`)?.value || (i+1)}: Desired volume (${desiredVol.toFixed(2)} µL) is less than volume to pool (${volToPool.toFixed(2)} µL)`);
             }
+            if (desiredConcs[i] > mols[i]) {
+                concWarnings.push(`Library ${document.getElementById(`library_id_${i}`)?.value || (i+1)}: Desired concentration (${desiredConcs[i].toFixed(2)} nM) is higher than the original concentration (${mols[i].toFixed(2)} nM)`);
+            }
         }
         concTable.innerHTML = table;
         let warningMsg = '';
@@ -141,6 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (volWarnings.length > 0) {
             if (warningMsg) warningMsg += ' ';
             warningMsg += volWarnings.join(' | ');
+        }
+        if (concWarnings.length > 0) {
+            if (warningMsg) warningMsg += ' ';
+            warningMsg += concWarnings.join(' | ');
         }
         warningDiv.textContent = warningMsg;
         for (let i = 0; i < num; i++) {
@@ -176,6 +184,21 @@ document.addEventListener('DOMContentLoaded', () => {
         finalMixTable.innerHTML = `
         <tr><th>Target Final Conc. (pM)</th><th>Target Final Vol. (µL)</th><th>% PhiX</th><th>Pooled Library Vol. (µL)</th><th>PhiX Vol. (µL)</th><th>EB Buffer Vol. (µL)</th></tr>
         <tr><td>${finalTargetConcP}</td><td>${finalTargetVol}</td><td>${phiXpercent}</td><td>${safeLibVol.toFixed(2)}</td><td>${phiXvol.toFixed(2)}</td><td>${safeEbVol.toFixed(2)}</td></tr>`;
+
+        // Add warning if finalLibConc < finalTargetConc
+        let finalMixWarning = document.getElementById('finalMixWarning');
+        if (!finalMixWarning) {
+            finalMixWarning = document.createElement('div');
+            finalMixWarning.id = 'finalMixWarning';
+            finalMixWarning.style.color = 'red';
+            finalMixWarning.style.marginTop = '0.5em';
+            finalMixTable.parentNode.insertBefore(finalMixWarning, finalMixTable.nextSibling);
+        }
+        if (finalLibConc < finalTargetConc) {
+            finalMixWarning.textContent = `Warning: The pooled library concentration (${finalLibConc.toFixed(2)} nM) is less than the target final concentration (${finalTargetConc.toFixed(2)} nM). It is not possible to reach the target concentration with the current libraries.`;
+        } else {
+            finalMixWarning.textContent = '';
+        }
     }
 
     // Save all input values to localStorage
