@@ -81,6 +81,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderConcTable(num, mols, areas, ratios, totalArea, desiredConcsFromStore = null, desiredVolsFromStore = null) {
         const targetFinalVol = parseFloat(document.getElementById('finalTargetVol')?.value) || 20.0;
         const targetFinalConc = parseFloat(document.getElementById('finalTargetConc')?.value) || 2.0;
+        const phiXpercent = parseFloat(document.getElementById('phiXpercent')?.value) || 5;
+        const phiXvol = targetFinalVol * (phiXpercent / 100);
+        const poolVol = targetFinalVol - phiXvol;
         let desiredConcs = [], desiredVols = [], libVols = [], ebVols = [], volToPools = [];
         // Calculate the denominator for normalization: sum(ratio / desiredConc)
         let normDenom = 0;
@@ -97,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
             desiredConcs[i] = desiredConc;
             normDenom += ratios[i] / desiredConc;
         }
-        // Calculate vol to pool for each library: (ratio / desiredConc) / normDenom * targetFinalVol
+        // Calculate vol to pool for each library: (ratio / desiredConc) / normDenom * poolVol
         let table = `<tr><th>Library ID</th><th>Start Conc.<br>(nM)</th><th>Desired Conc.<br>(nM)</th><th>Desired Vol.<br>(µL)</th><th>Lib Vol to mix<br>(µL)</th><th>EB Vol to mix<br>(µL)</th><th>Vol. to pool<br>(µL)</th><th>Ratio</th></tr>`;
         let sumVolsToPool = 0;
         let volWarnings = [];
@@ -115,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const libVolToMix = (desiredConcs[i] > 0 && mols[i] > 0) ? (desiredVol * desiredConcs[i]) / mols[i] : 0;
             const ebVolToMix = desiredVol - libVolToMix;
             // Normalized vol to pool
-            const volToPool = ((ratios[i] / desiredConcs[i]) / normDenom) * targetFinalVol;
+            const volToPool = ((ratios[i] / desiredConcs[i]) / normDenom) * poolVol;
             volToPools[i] = volToPool;
             table += `<tr><td id="conc_library_id_${i}">${document.getElementById(`library_id_${i}`)?.value || ''}</td>` +
                 `<td id="conc_mol_${i}">${mols[i].toFixed(2)}</td>` +
@@ -132,8 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         concTable.innerHTML = table;
         let warningMsg = '';
-        if (Math.abs(sumVolsToPool - targetFinalVol) > 0.01) {
-            warningMsg += `Note: Volumes to pool sum to ${sumVolsToPool.toFixed(2)} µL (target: ${targetFinalVol} µL).`;
+        if (Math.abs(sumVolsToPool - poolVol) > 0.01) {
+            warningMsg += `Note: Volumes to pool sum to ${sumVolsToPool.toFixed(2)} µL (target: ${poolVol.toFixed(2)} µL, total final vol: ${targetFinalVol} µL, PhiX: ${phiXvol.toFixed(2)} µL).`;
         }
         if (volWarnings.length > 0) {
             if (warningMsg) warningMsg += ' ';
