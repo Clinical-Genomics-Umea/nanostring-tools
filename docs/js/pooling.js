@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    function updateCalc() {
+    function updateCalc(desiredConcsFromStore = null, desiredVolsFromStore = null) {
         const num = parseInt(numLibsSelect.value);
         let mols = [], areas = [], ratios = [];
         let totalArea = 0;
@@ -75,45 +75,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         wtaReadsDiv.textContent = `Estimated WTA reads: ${(100 * totalArea).toLocaleString()} reads`;
-        renderConcTable(num, mols, areas, ratios, totalArea);
+        renderConcTable(num, mols, areas, ratios, totalArea, desiredConcsFromStore, desiredVolsFromStore);
     }
 
-    function renderConcTable(num, mols, areas, ratios, totalArea) {
-        const targetVol = parseFloat(document.getElementById('targetVol')?.value) || 20.0;
-        const targetConc = parseFloat(document.getElementById('targetConc')?.value) || 2.0;
-
-        let dilutionConcs = [], volsToPool = [], sumVols = 0;
-        let table = `<tr><th>Library ID</th><th>Quantification<br>(nM)</th><th>Dilution factor</th><th>Dilution conc.<br>(nM)</th><th>Vol. to pool<br>(µL)</th><th>Ratio</th><th>Final conc.<br>(nM)</th></tr>`;
-
+    function renderConcTable(num, mols, areas, ratios, totalArea, desiredConcsFromStore = null, desiredVolsFromStore = null) {
+        const targetFinalVol = parseFloat(document.getElementById('finalTargetVol')?.value) || 20.0;
+        const targetFinalConc = parseFloat(document.getElementById('finalTargetConc')?.value) || 2.0;
+        let desiredConcs = [], desiredVols = [], libVols = [], ebVols = [], volToPools = [];
+        // Calculate the denominator for normalization: sum(ratio / desiredConc)
+        let normDenom = 0;
         for (let i = 0; i < num; i++) {
-            let dilfacId = `dilfac2_${i}`;
-            let prevDilfac = document.getElementById(dilfacId)?.value || 4;
-            table += `<tr><td>${document.getElementById(`library_id_${i}`).value}</td><td>${mols[i].toFixed(2)}</td>` +
-                `<td><input type="number" step="any" id="${dilfacId}" class="input-field2" value="${prevDilfac}" min="1"></td>`;
-            const dilfac = parseFloat(prevDilfac) || 4;
-            const dilConc = mols[i] / dilfac;
-            dilutionConcs[i] = dilConc;
-            const volToPool = dilConc > 0 ? (targetVol * targetConc * ratios[i]) / dilConc : 0;
-            volsToPool[i] = volToPool;
-            sumVols += volToPool;
-            const prop = ratios[i];
-            const finalConc = targetConc * prop;
-            table += `<td>${dilutionConcs[i].toFixed(2)}</td><td>${volToPool.toFixed(2)}</td><td>${prop.toFixed(3)}</td><td>${finalConc.toFixed(2)}</td></tr>`;
+            let desiredConc;
+            if (desiredConcsFromStore && desiredConcsFromStore[i] !== undefined && desiredConcsFromStore[i] !== '') {
+                desiredConc = parseFloat(desiredConcsFromStore[i]);
+            } else {
+                let desiredConcId = `desiredConc_${i}`;
+                let prevDesiredConc = document.getElementById(desiredConcId)?.value || '';
+                desiredConc = parseFloat(prevDesiredConc);
+            }
+            if (isNaN(desiredConc) || desiredConc <= 0) desiredConc = 2.0;
+            desiredConcs[i] = desiredConc;
+            normDenom += ratios[i] / desiredConc;
         }
-
-        const ebVol = targetVol - sumVols;
-        table += `<tr><td colspan="5">EB</td><td>${ebVol.toFixed(2)}</td><td colspan="2"></td></tr>`;
+        // Calculate vol to pool for each library: (ratio / desiredConc) / normDenom * targetFinalVol
+        let table = `<tr><th>Library ID</th><th>Start Conc.<br>(nM)</th><th>Desired Conc.<br>(nM)</th><th>Desired Vol.<br>(µL)</th><th>Lib Vol to mix<br>(µL)</th><th>EB Vol to mix<br>(µL)</th><th>Vol. to pool<br>(µL)</th><th>Ratio</th></tr>`;
+        let sumVolsToPool = 0;
+        let volWarnings = [];
+        for (let i = 0; i < num; i++) {
+            let desiredVol;
+            if (desiredVolsFromStore && desiredVolsFromStore[i] !== undefined && desiredVolsFromStore[i] !== '') {
+                desiredVol = parseFloat(desiredVolsFromStore[i]);
+            } else {
+                let desiredVolId = `desiredVol_${i}`;
+                let prevDesiredVol = document.getElementById(desiredVolId)?.value || '';
+                desiredVol = parseFloat(prevDesiredVol);
+            }
+            if (isNaN(desiredVol) || desiredVol <= 0) desiredVol = 20.0;
+            // Calculate how much original library to use to make this dilution
+            const libVolToMix = (desiredConcs[i] > 0 && mols[i] > 0) ? (desiredVol * desiredConcs[i]) / mols[i] : 0;
+            const ebVolToMix = desiredVol - libVolToMix;
+            // Normalized vol to pool
+            const volToPool = ((ratios[i] / desiredConcs[i]) / normDenom) * targetFinalVol;
+            volToPools[i] = volToPool;
+            table += `<tr><td id="conc_library_id_${i}">${document.getElementById(`library_id_${i}`)?.value || ''}</td>` +
+                `<td id="conc_mol_${i}">${mols[i].toFixed(2)}</td>` +
+                `<td><input type="number" step="any" id="desiredConc_${i}" class="input-field2 conc-input" value="${desiredConcs[i]}" min="0.01"></td>` +
+                `<td><input type="number" step="any" id="desiredVol_${i}" class="input-field2 vol-input" value="${desiredVol.toFixed(2)}" min="0.01"></td>` +
+                `<td id="libvol_${i}">${libVolToMix.toFixed(2)}</td>` +
+                `<td id="ebvol_${i}">${ebVolToMix.toFixed(2)}</td>` +
+                `<td id="voltopool_${i}">${volToPool.toFixed(2)}</td>` +
+                `<td id="conc_ratio_${i}">${ratios[i].toFixed(3)}</td></tr>`;
+            sumVolsToPool += volToPool;
+            if (desiredVol < volToPool - 0.01) {
+                volWarnings.push(`Library ${document.getElementById(`library_id_${i}`)?.value || (i+1)}: Desired volume (${desiredVol.toFixed(2)} µL) is less than volume to pool (${volToPool.toFixed(2)} µL)`);
+            }
+        }
         concTable.innerHTML = table;
-
-        warningDiv.textContent = (sumVols > targetVol)
-            ? `Warning: Total pooled volumes (${sumVols.toFixed(2)} µL) exceed target volume (${targetVol.toFixed(2)} µL). Adjust dilution factors or target volume.`
-            : '';
-
-        for (let i = 0; i < num; i++) {
-            document.getElementById(`dilfac2_${i}`).addEventListener('input', updateCalc);
+        let warningMsg = '';
+        if (Math.abs(sumVolsToPool - targetFinalVol) > 0.01) {
+            warningMsg += `Note: Volumes to pool sum to ${sumVolsToPool.toFixed(2)} µL (target: ${targetFinalVol} µL).`;
         }
-
-        updateFinalMixTable(targetConc);
+        if (volWarnings.length > 0) {
+            if (warningMsg) warningMsg += ' ';
+            warningMsg += volWarnings.join(' | ');
+        }
+        warningDiv.textContent = warningMsg;
+        for (let i = 0; i < num; i++) {
+            document.getElementById(`desiredConc_${i}`).addEventListener('input', updateCalcAndSave);
+            document.getElementById(`desiredVol_${i}`).addEventListener('input', updateCalcAndSave);
+        }
+        // Calculate effective pool concentration for final mix table
+        let poolConc = 0, totalRatio = 0;
+        for (let i = 0; i < num; i++) {
+            if (!isNaN(desiredConcs[i]) && desiredConcs[i] > 0) {
+                poolConc += desiredConcs[i] * ratios[i];
+                totalRatio += ratios[i];
+            }
+        }
+        if (totalRatio > 0) poolConc = poolConc / totalRatio;
+        else poolConc = desiredConcs[0] || 2.0;
+        updateFinalMixTable(poolConc);
     }
 
     function updateFinalMixTable(finalLibConc) {
@@ -156,11 +197,14 @@ document.addEventListener('DOMContentLoaded', () => {
         data.finalTargetConc = document.getElementById('finalTargetConc')?.value || '';
         data.finalTargetVol = document.getElementById('finalTargetVol')?.value || '';
         data.phiXpercent = document.getElementById('phiXpercent')?.value || '';
-        // Dilution factors
-        data.dilfacs = [];
+        // Desired concentrations and volumes
+        data.desiredConcs = [];
+        data.desiredVols = [];
         for (let i = 0; i < num; i++) {
-            const dil = document.getElementById(`dilfac2_${i}`);
-            data.dilfacs.push(dil ? dil.value : '');
+            const conc = document.getElementById(`desiredConc_${i}`);
+            const vol = document.getElementById(`desiredVol_${i}`);
+            data.desiredConcs.push(conc ? conc.value : '');
+            data.desiredVols.push(vol ? vol.value : '');
         }
         localStorage.setItem('poolingToolData', JSON.stringify(data));
     }
@@ -174,27 +218,26 @@ document.addEventListener('DOMContentLoaded', () => {
         createTable(parseInt(numLibsSelect.value), data.pool || []);
         // Set pool table values
         for (let i = 0; i < (data.pool || []).length; i++) {
-            document.getElementById(`library_id_${i}`).value = data.pool[i].library_id || '';
-            document.getElementById(`plate_${i}`).value = data.pool[i].plate || '';
-            document.getElementById(`qubit_${i}`).value = data.pool[i].qubit || '';
-            document.getElementById(`fraglen_${i}`).value = data.pool[i].fraglen || '';
-            document.getElementById(`area_${i}`).value = data.pool[i].area || '';
+            const libId = document.getElementById(`library_id_${i}`);
+            const plate = document.getElementById(`plate_${i}`);
+            const qubit = document.getElementById(`qubit_${i}`);
+            const fraglen = document.getElementById(`fraglen_${i}`);
+            const area = document.getElementById(`area_${i}`);
+            if (libId) libId.value = data.pool[i].library_id || '';
+            if (plate) plate.value = data.pool[i].plate || '';
+            if (qubit) qubit.value = data.pool[i].qubit || '';
+            if (fraglen) fraglen.value = data.pool[i].fraglen || '';
+            if (area) area.value = data.pool[i].area || '';
         }
-        if (data.targetConc) document.getElementById('targetConc').value = data.targetConc;
-        if (data.targetVol) document.getElementById('targetVol').value = data.targetVol;
-        if (data.finalTargetConc) document.getElementById('finalTargetConc').value = data.finalTargetConc;
-        if (data.finalTargetVol) document.getElementById('finalTargetVol').value = data.finalTargetVol;
-        if (data.phiXpercent) document.getElementById('phiXpercent').value = data.phiXpercent;
-        // Set dilution factors
-        if (data.dilfacs) {
-            for (let i = 0; i < data.dilfacs.length; i++) {
-                const dil = document.getElementById(`dilfac2_${i}`);
-                if (dil && data.dilfacs[i]) dil.value = data.dilfacs[i];
-            }
-        }
+        if (data.targetConc && document.getElementById('targetConc')) document.getElementById('targetConc').value = data.targetConc;
+        if (data.targetVol && document.getElementById('targetVol')) document.getElementById('targetVol').value = data.targetVol;
+        if (data.finalTargetConc && document.getElementById('finalTargetConc')) document.getElementById('finalTargetConc').value = data.finalTargetConc;
+        if (data.finalTargetVol && document.getElementById('finalTargetVol')) document.getElementById('finalTargetVol').value = data.finalTargetVol;
+        if (data.phiXpercent && document.getElementById('phiXpercent')) document.getElementById('phiXpercent').value = data.phiXpercent;
+        // Set desired concentrations and volumes by passing them to updateCalc
+        updateCalc(data.desiredConcs || null, data.desiredVols || null);
     }
 
-    // Patch updateCalc to save after every change
     function updateCalcAndSave() {
         updateCalc();
         saveInputsToStorage();
@@ -218,11 +261,33 @@ document.addEventListener('DOMContentLoaded', () => {
         pdfBtn.parentNode.insertBefore(btn, pdfBtn.nextSibling);
     }
 
-    // Patch addInputListeners to only update calculations, not save
+    // Remove the controls for targetConc and targetVol above the second table
+    const targetConcInput = document.getElementById('targetConc');
+    const targetVolInput = document.getElementById('targetVol');
+    if (targetConcInput) targetConc.parentNode.removeChild(targetConcInput);
+    if (targetVolInput) targetVol.parentNode.removeChild(targetVolInput);
+    const targetConcLabel = document.querySelector('label[for="targetConc"]');
+    if (targetConcLabel) targetConcLabel.parentNode.removeChild(targetConcLabel);
+    const targetVolLabel = document.querySelector('label[for="targetVol"]');
+    if (targetVolLabel) targetVolLabel.parentNode.removeChild(targetVolLabel);
+
+    // Patch addInputListeners to update the second table when any input in the second or third table changes
     function addInputListeners() {
-        document.querySelectorAll('.input-field, .input-field2, #targetConc, #targetVol, #finalTargetConc, #finalTargetVol, #phiXpercent').forEach(field => {
+        document.querySelectorAll('.input-field, .input-field2').forEach(field => {
             field.addEventListener('input', updateCalc);
         });
+        // Add listeners for dynamically created desiredConc and desiredVol fields
+        const num = parseInt(numLibsSelect.value);
+        for (let i = 0; i < num; i++) {
+            const conc = document.getElementById(`desiredConc_${i}`);
+            const vol = document.getElementById(`desiredVol_${i}`);
+            if (conc) conc.addEventListener('input', updateCalc);
+            if (vol) vol.addEventListener('input', updateCalc);
+        }
+        // Add listeners for final table controls
+        document.getElementById('finalTargetConc')?.addEventListener('input', updateCalc);
+        document.getElementById('finalTargetVol')?.addEventListener('input', updateCalc);
+        document.getElementById('phiXpercent')?.addEventListener('input', updateCalc);
     }
 
     numLibsSelect.addEventListener('change', () => {
@@ -237,13 +302,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const arr = [];
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
-            // Only include rows with at least one cell (skip empty rows)
             if (row.cells.length === 0) continue;
             const cells = Array.from(row.cells).map((cell, colIdx) => {
                 const input = cell.querySelector('input');
                 let val = input ? input.value : cell.textContent;
                 // PoolTable: columns 0=Library, 1=Library ID, 2=Plate, 3=Qubit Conc, 4=Fragment Length, 5=Pool Area, 6=Molarity, 7=Ratio
-                // ConcTable: 0=Library ID, 1=Quantification, 2=Dilution factor, 3=Dilution conc, 4=Vol to pool, 5=Ratio, 6=Final conc
+                // ConcTable: 0=Library ID, 1=Start Conc, 2=Desired Conc, 3=Desired Vol, 4=Lib Vol to mix, 5=EB Vol to mix, 6=Vol to pool, 7=Ratio, 8=Final conc
                 // FinalMixTable: all numeric
                 let isNumericCol = false;
                 let isIntCol = false;
@@ -251,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     isIntCol = (colIdx === 4 || colIdx === 5);
                     isNumericCol = (colIdx >= 3 && !isIntCol);
                 } else if (tableElem === concTable) {
-                    isNumericCol = (colIdx >= 1);
+                    isNumericCol = (colIdx >= 1 && colIdx <= 8);
                 } else if (tableElem === finalMixTable) {
                     isNumericCol = true;
                 }
