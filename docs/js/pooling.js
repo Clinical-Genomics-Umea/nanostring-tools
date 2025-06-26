@@ -74,16 +74,21 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(`ratio_${i}`).innerText = ratio.toFixed(3);
         }
 
-        wtaReadsDiv.textContent = `Estimated WTA reads: ${(100 * totalArea).toLocaleString()} reads`;
+        // Calculate weighted mean fragment length
+        let meanFragmentLength = 0;
+        for (let i = 0; i < num; i++) {
+            const fraglen = parseFloat(document.getElementById(`fraglen_${i}`).value) || 0;
+            meanFragmentLength += fraglen * ratios[i];
+        }
+
+        wtaReadsDiv.innerHTML = `Estimated WTA reads: ${(100 * totalArea).toLocaleString()} reads<br>Mean fragment length: ${meanFragmentLength.toFixed(1)} bp`;
         renderConcTable(num, mols, areas, ratios, totalArea, desiredConcsFromStore, desiredVolsFromStore);
     }
 
     function renderConcTable(num, mols, areas, ratios, totalArea, desiredConcsFromStore = null, desiredVolsFromStore = null) {
         const targetFinalVol = parseFloat(document.getElementById('finalTargetVol')?.value) || 20.0;
         const targetFinalConc = parseFloat(document.getElementById('finalTargetConc')?.value) || 2.0;
-        const phiXpercent = isNaN(parseFloat(document.getElementById('phiXpercent')?.value)) ? 5 : parseFloat(document.getElementById('phiXpercent')?.value);
-        const phiXvol = targetFinalVol * (phiXpercent / 100);
-        const poolVol = targetFinalVol - phiXvol;
+        const poolVol = targetFinalVol; 
         let desiredConcs = [], desiredVols = [], libVols = [], ebVols = [], volToPools = [];
         // Calculate the denominator for normalization: sum(ratio / desiredConc)
         let normDenom = 0;
@@ -140,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         concTable.innerHTML = table;
         let warningMsg = '';
         if (Math.abs(sumVolsToPool - poolVol) > 0.01) {
-            warningMsg += `Note: Volumes to pool sum to ${sumVolsToPool.toFixed(2)} µL (target: ${poolVol.toFixed(2)} µL, total final vol: ${targetFinalVol} µL, PhiX: ${phiXvol.toFixed(2)} µL).`;
+            warningMsg += `Note: Volumes to pool sum to ${sumVolsToPool.toFixed(2)} µL (target: ${poolVol.toFixed(2)} µL, total final vol: ${targetFinalVol} µL).`;
         }
         if (volWarnings.length > 0) {
             if (warningMsg) warningMsg += ' ';
@@ -169,21 +174,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateFinalMixTable(finalLibConc) {
-        const finalTargetConcP = parseFloat(document.getElementById('finalTargetConc')?.value) || 650;
+        const finalTargetConc = parseFloat(document.getElementById('finalTargetConc')?.value) || 2.0; // nM, no conversion needed
         const finalTargetVol = parseFloat(document.getElementById('finalTargetVol')?.value) || 20;
-        const phiXpercent = isNaN(parseFloat(document.getElementById('phiXpercent')?.value)) ? 5 : parseFloat(document.getElementById('phiXpercent')?.value);
 
-        const finalTargetConc = finalTargetConcP / 1000; // convert to nM
-        const phiXvol = finalTargetVol * (phiXpercent / 100);
         const libVol = (finalTargetConc * finalTargetVol) / finalLibConc;
-        const ebVol = finalTargetVol - libVol - phiXvol;
+        const ebVol = finalTargetVol - libVol; 
 
         const safeLibVol = Math.max(0, libVol);
         const safeEbVol = Math.max(0, ebVol);
 
         finalMixTable.innerHTML = `
-        <tr><th>Target Final Conc. (pM)</th><th>Target Final Vol. (µL)</th><th>% PhiX</th><th>Pooled Library Vol. (µL)</th><th>PhiX Vol. (µL)</th><th>EB Buffer Vol. (µL)</th></tr>
-        <tr><td>${finalTargetConcP}</td><td>${finalTargetVol}</td><td>${phiXpercent}</td><td>${safeLibVol.toFixed(2)}</td><td>${phiXvol.toFixed(2)}</td><td>${safeEbVol.toFixed(2)}</td></tr>`;
+        <tr><th>Target Final Conc. (nM)</th><th>Target Final Vol. (µL)</th><th>Pooled Library Vol. (µL)</th><th>EB Buffer Vol. (µL)</th></tr>
+        <tr><td>${finalTargetConc}</td><td>${finalTargetVol}</td><td>${safeLibVol.toFixed(2)}</td><td>${safeEbVol.toFixed(2)}</td></tr>`;
 
         // Add warning if finalLibConc < finalTargetConc
         let finalMixWarning = document.getElementById('finalMixWarning');
@@ -222,7 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
         data.targetVol = document.getElementById('targetVol')?.value || '';
         data.finalTargetConc = document.getElementById('finalTargetConc')?.value || '';
         data.finalTargetVol = document.getElementById('finalTargetVol')?.value || '';
-        data.phiXpercent = document.getElementById('phiXpercent')?.value || '';
         // Desired concentrations and volumes
         data.desiredConcs = [];
         data.desiredVols = [];
@@ -259,7 +260,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.targetVol && document.getElementById('targetVol')) document.getElementById('targetVol').value = data.targetVol;
         if (data.finalTargetConc && document.getElementById('finalTargetConc')) document.getElementById('finalTargetConc').value = data.finalTargetConc;
         if (data.finalTargetVol && document.getElementById('finalTargetVol')) document.getElementById('finalTargetVol').value = data.finalTargetVol;
-        if (data.phiXpercent && document.getElementById('phiXpercent')) document.getElementById('phiXpercent').value = data.phiXpercent;
         // Set desired concentrations and volumes by passing them to updateCalc
         updateCalc(data.desiredConcs || null, data.desiredVols || null);
     }
@@ -313,7 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add listeners for final table controls
         document.getElementById('finalTargetConc')?.addEventListener('input', updateCalc);
         document.getElementById('finalTargetVol')?.addEventListener('input', updateCalc);
-        document.getElementById('phiXpercent')?.addEventListener('input', updateCalc);
     }
 
     numLibsSelect.addEventListener('change', () => {
@@ -383,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sheetData.push([]);
         sheetData.push(...concData);
         sheetData.push([]);
-        sheetData.push(['Final Load mixture']);
+        sheetData.push(['Pooling mixture']);
         sheetData.push([]);
         sheetData.push(...finalMixData);
 
@@ -443,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (finalMixData.length > 1) {
-            doc.text('Final Load mixture', 14, y);
+            doc.text('Pooling mixture', 14, y);
             doc.autoTable({
                 startY: y + 4,
                 head: [finalMixData[0]],
