@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderConcTable(num, mols, areas, ratios, totalArea, desiredConcsFromStore = null, desiredVolsFromStore = null) {
         const targetFinalVol = parseFloat(document.getElementById('finalTargetVol')?.value) || 20.0;
         const targetFinalConc = parseFloat(document.getElementById('finalTargetConc')?.value) || 2.0;
-        const phiXpercent = parseFloat(document.getElementById('phiXpercent')?.value) || 5;
+        const phiXpercent = isNaN(parseFloat(document.getElementById('phiXpercent')?.value)) ? 5 : parseFloat(document.getElementById('phiXpercent')?.value);
         const phiXvol = targetFinalVol * (phiXpercent / 100);
         const poolVol = targetFinalVol - phiXvol;
         let desiredConcs = [], desiredVols = [], libVols = [], ebVols = [], volToPools = [];
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateFinalMixTable(finalLibConc) {
         const finalTargetConcP = parseFloat(document.getElementById('finalTargetConc')?.value) || 650;
         const finalTargetVol = parseFloat(document.getElementById('finalTargetVol')?.value) || 20;
-        const phiXpercent = parseFloat(document.getElementById('phiXpercent')?.value) || 5;
+        const phiXpercent = isNaN(parseFloat(document.getElementById('phiXpercent')?.value)) ? 5 : parseFloat(document.getElementById('phiXpercent')?.value);
 
         const finalTargetConc = finalTargetConcP / 1000; // convert to nM
         const phiXvol = finalTargetVol * (phiXpercent / 100);
